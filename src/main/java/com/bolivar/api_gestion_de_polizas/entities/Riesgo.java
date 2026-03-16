@@ -6,6 +6,8 @@ import java.util.UUID;
 import com.fasterxml.jackson.annotation.JsonBackReference;
 
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -20,11 +22,21 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @NoArgsConstructor
 public class Riesgo {
+
+    public enum EstadoRiesgo {
+        ACTIVO,
+        CANCELADO
+    }
+
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
     private String tipoRiesgo;
     private String descripcion;
+
+    @Enumerated(EnumType.STRING)
+    private EstadoRiesgo estadoRiesgo; 
+    
     private LocalDateTime fechaDeCreacion;
     private LocalDateTime fechaDeModificacion;
 

@@ -10,5 +10,5 @@ import com.bolivar.api_gestion_de_polizas.entities.Poliza;
 public interface PolizaRepository extends JpaRepository<Poliza, UUID>{
 
     List<Poliza> findByTipoPolizaAndEstadoPoliza(Poliza.TipoPoliza tipoPoliza, Poliza.EstadoPoliza estadoPoliza);
-        
+
 }

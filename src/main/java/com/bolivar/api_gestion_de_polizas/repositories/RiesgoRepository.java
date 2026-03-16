@@ -11,4 +11,5 @@ import java.util.List;
 public interface RiesgoRepository extends JpaRepository<Riesgo, UUID>{
 
     List<Riesgo> findByPolizaId(UUID polizaId);
+
 }
