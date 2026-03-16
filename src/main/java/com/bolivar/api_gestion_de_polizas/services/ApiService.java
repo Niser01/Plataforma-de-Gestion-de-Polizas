@@ -10,6 +10,7 @@ import java.util.UUID;
 import org.springframework.stereotype.Service;
 
 import com.bolivar.api_gestion_de_polizas.dto.addRiesgoDTO;
+import com.bolivar.api_gestion_de_polizas.dto.coreMockDTO;
 import com.bolivar.api_gestion_de_polizas.entities.Poliza;
 import com.bolivar.api_gestion_de_polizas.entities.Riesgo;
 import com.bolivar.api_gestion_de_polizas.repositories.PolizaRepository;
@@ -19,7 +20,9 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class ApiService {
@@ -45,6 +48,13 @@ public class ApiService {
         ERROR_INTERNO
     }
 
+    public enum EventoCore{
+        ACTUALIZACION,
+        CANCELACION_POLIZA, 
+        CANCELACION_RIESGO,
+        CREACION_RIESGO
+    }
+
     @Data
     @NoArgsConstructor
     @AllArgsConstructor
@@ -54,11 +64,26 @@ public class ApiService {
         private T datosSalida;
     }
 
-    public RespuestaApi<List<Poliza>> getPolizas(Poliza.TipoPoliza tipoPoliza, Poliza.EstadoPoliza estadoPoliza){
+    public RespuestaApi<List<Poliza>> getPolizas(String tipo, String estado){
         try{
             //Validacion de parametros 
-            if (tipoPoliza == null || estadoPoliza == null){
+            if (tipo == null || estado == null){
                 return new RespuestaApi<List<Poliza>>(EstadoObtenido.PARAMETRO_FALTANTE, "Los parametros 'tipo' y 'estado' son obligatorios", null);
+            }
+
+            Poliza.TipoPoliza tipoPoliza;
+            Poliza.EstadoPoliza estadoPoliza;
+
+            try {
+                tipoPoliza = Poliza.TipoPoliza.valueOf(tipo.toUpperCase());
+            } catch (IllegalArgumentException e) {
+                return new RespuestaApi<>(EstadoObtenido.FORMATO_INVALIDO,"Tipo inválido. Valores aceptados: INDIVIDUAL, COLECTIVA", null);
+            }
+
+            try {
+                estadoPoliza = Poliza.EstadoPoliza.valueOf(estado.toUpperCase());
+            } catch (IllegalArgumentException e) {
+                return new RespuestaApi<>(EstadoObtenido.FORMATO_INVALIDO, "Estado inválido. Valores aceptados: ACTIVA, CANCELADA, RENOVADA", null);
             }
 
             List<Poliza> polizas = polizaRepository.findByTipoPolizaAndEstadoPoliza(tipoPoliza, estadoPoliza);
@@ -127,6 +152,9 @@ public class ApiService {
 
             polizaRepository.save(poliza);
 
+            //Notifiacion al CORE
+            notificacionCore(EventoCore.ACTUALIZACION, polizaId);
+
             return new RespuestaApi<Void>(EstadoObtenido.RECURSO_ACTUALIZADO, null, null);
         }catch(Exception e){
             return new RespuestaApi<Void>(EstadoObtenido.ERROR_INTERNO, e.getMessage(), null);
@@ -164,6 +192,9 @@ public class ApiService {
             poliza.setFechaDeModificacion(LocalDateTime.now());
 
             polizaRepository.save(poliza);
+
+            //Notifiacion al CORE
+            notificacionCore(EventoCore.CANCELACION_POLIZA, polizaId);
 
             return new RespuestaApi<Void>(EstadoObtenido.RECURSO_CANCELADO, null, null);
         }catch(Exception e){
@@ -203,6 +234,9 @@ public class ApiService {
             
             riesgoRepository.save(riesgo);
             
+            //Notifiacion al CORE
+            notificacionCore(EventoCore.CREACION_RIESGO, polizaId);
+
             return new RespuestaApi<Void>(EstadoObtenido.OPERACION_EXITOSA, null, null);
         }catch(Exception e){
             return new RespuestaApi<Void>(EstadoObtenido.ERROR_INTERNO, e.getMessage(), null);
@@ -232,6 +266,8 @@ public class ApiService {
 
             riesgoRepository.save(riesgo);
 
+            //Notifiacion al CORE
+            notificacionCore(EventoCore.CANCELACION_RIESGO, riesgoId);
 
             return new RespuestaApi<Void>(EstadoObtenido.RECURSO_CANCELADO, null, null);
         }catch(Exception e){
@@ -239,5 +275,29 @@ public class ApiService {
         }
     }
 
+    public RespuestaApi<Void> notificacionCore(EventoCore evento, UUID polizaId){
+        try{
+            log.info("Enviando evento al CORE: evento={}, polizaId={}", evento, polizaId);
+            return new RespuestaApi<Void>(EstadoObtenido.OPERACION_EXITOSA, "Evento enviado al CORE", null);
+        }catch (Exception e){
+            return new RespuestaApi<Void>(EstadoObtenido.ERROR_INTERNO, e.getMessage(), null);
+        }
+    }
+
+    public RespuestaApi<Void> coreMock(coreMockDTO mockDto){
+        try{
+            if(mockDto == null){
+                return new RespuestaApi<Void>(EstadoObtenido.PARAMETRO_FALTANTE, "El cuerpo de la petición es obligatorio", null);
+            }
+            if (mockDto.getEvento() == null || mockDto.getPolizaId() == null) {
+                return new RespuestaApi<Void>(EstadoObtenido.PARAMETRO_FALTANTE, "Los campos 'evento' y 'polizaId' son obligatorios", null);
+            }
+            log.info("Evento recibido y almacenado en sistema CORE: evento={}, polizaId={}", mockDto.getEvento(), mockDto.getPolizaId());
+
+            return new RespuestaApi<Void>(EstadoObtenido.OPERACION_EXITOSA, "Evento registrado en CORE", null);
+        }catch(Exception e){
+            return new RespuestaApi<Void>(EstadoObtenido.ERROR_INTERNO, e.getMessage(), null);
+        }
+    }
 
 }

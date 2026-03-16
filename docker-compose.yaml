@@ -1,0 +1,9 @@
+services:
+  api_gestion_de_polizas:
+    container_name: ApiGestionDePolizas
+    build: .
+    env_file:
+      - .env
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
